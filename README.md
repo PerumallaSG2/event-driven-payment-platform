@@ -20,7 +20,18 @@ The system follows an event-driven microservices architecture:
 
 ## 📊 Architecture Diagram
 
+The diagram below shows how payment requests move through the platform using Kafka-based asynchronous communication.
+
 ![Architecture](./architecture.png)
+
+## Request Flow
+
+1. Client sends a payment request to the Payment Service.
+2. Payment Service validates the request and enforces idempotency.
+3. Transaction data is stored in PostgreSQL.
+4. A payment event is published to Kafka.
+5. Downstream services such as Notification or Fraud consume the event asynchronously.
+6. Monitoring and logs capture system activity and failures.
 
 ## 🔥 Key Engineering Concepts
 
