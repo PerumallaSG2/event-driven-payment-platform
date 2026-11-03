@@ -5,9 +5,11 @@
 .idea/
 *.iml
 
-# Maven
+# Maven (the wrapper in .mvn/wrapper/ is committed; with distributionType=only-script there is no jar)
 **/target/
-**/.mvn/
 
 # Logs
 *.log
+
+# Claude Code project notes (local only)
+CLAUDE.md

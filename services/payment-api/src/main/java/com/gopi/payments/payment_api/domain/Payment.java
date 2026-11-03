@@ -14,22 +14,20 @@ public class Payment {
     @GeneratedValue
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 3)
     private String currency;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private PaymentStatus status;
 
     @Column(nullable = false)
     private Instant createdAt;
 
     protected Payment() {}
-
-    public Payment(UUID id, BigDecimal amount, String currency) {}
 
     public Payment(BigDecimal amount, String currency) {
         this.amount = amount;

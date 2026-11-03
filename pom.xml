@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Spring Boot 4: versions of Flyway, Testcontainers (2.x), Kafka clients etc. come from its BOM -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.2</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.gopi.payments</groupId>
+    <artifactId>payment-platform</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>payment-platform</name>
+    <description>Event-driven payment platform: moves money effectively once</description>
+
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+
+    <!-- payment-processor and ledger-service join here in later roadmap items -->
+    <modules>
+        <module>services/payment-api</module>
+    </modules>
+</project>
