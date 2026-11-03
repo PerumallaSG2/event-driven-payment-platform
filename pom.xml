@@ -22,8 +22,9 @@
         <java.version>21</java.version>
     </properties>
 
-    <!-- payment-processor and ledger-service join here in later roadmap items -->
+    <!-- payment-processor joins here in item 4 -->
     <modules>
         <module>services/payment-api</module>
+        <module>services/ledger-service</module>
     </modules>
 </project>
