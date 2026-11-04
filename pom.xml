@@ -22,9 +22,9 @@
         <java.version>21</java.version>
     </properties>
 
-    <!-- payment-processor joins here in item 4 -->
     <modules>
         <module>services/payment-api</module>
         <module>services/ledger-service</module>
+        <module>services/payment-processor</module>
     </modules>
 </project>

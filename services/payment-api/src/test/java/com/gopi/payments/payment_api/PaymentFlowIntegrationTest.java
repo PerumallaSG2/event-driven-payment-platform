@@ -95,6 +95,8 @@ class PaymentFlowIntegrationTest {
             assertThat(event.paymentId()).isEqualTo(id);
             assertThat(event.amount()).isEqualByComparingTo("12.34");
             assertThat(event.currency()).isEqualTo("USD");
+            assertThat(event.payerAccountId()).isEqualTo(stored.getPayerAccountId());
+            assertThat(event.merchantAccountId()).isEqualTo(stored.getMerchantAccountId());
         }
     }
 

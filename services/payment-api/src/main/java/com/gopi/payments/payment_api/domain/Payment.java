@@ -61,6 +61,9 @@ public class Payment {
     @Column(name = "transaction_offset_seconds", nullable = false)
     private int transactionOffsetSeconds;
 
+    @Column(length = 50)
+    private String failureReason;
+
     protected Payment() {}
 
     public Payment(UUID payerAccountId, UUID merchantAccountId, BigDecimal amount, String currency, String cardId,
@@ -82,7 +85,22 @@ public class Payment {
         this.createdAt = Instant.now();
     }
 
+    /** Applies the saga's outcome once: only a CREATED payment changes, so final statuses never move. */
+    public boolean complete() {
+        if (status != PaymentStatus.CREATED) return false;
+        status = PaymentStatus.COMPLETED;
+        return true;
+    }
+
+    public boolean fail(String reason) {
+        if (status != PaymentStatus.CREATED) return false;
+        status = PaymentStatus.FAILED;
+        failureReason = reason;
+        return true;
+    }
+
     public UUID getId() { return id; }
+    public String getFailureReason() { return failureReason; }
     public BigDecimal getAmount() { return amount; }
     public String getCurrency() { return currency; }
     public PaymentStatus getStatus() { return status; }

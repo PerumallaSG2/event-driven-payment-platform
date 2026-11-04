@@ -36,6 +36,7 @@ class PaymentQueryIntegrationTest {
         JsonNode json = reply.json(objectMapper);
         assertThat(json.get("paymentId").asString()).isEqualTo(id.toString());
         assertThat(json.get("status").asString()).isEqualTo("CREATED");
+        assertThat(json.get("failureReason").isNull()).isTrue();
         assertThat(json.get("payerAccountId").asString()).isEqualTo(body.get("payerAccountId"));
         assertThat(json.get("merchantAccountId").asString()).isEqualTo(body.get("merchantAccountId"));
         assertThat(json.get("amount").decimalValue()).isEqualByComparingTo("42.50");

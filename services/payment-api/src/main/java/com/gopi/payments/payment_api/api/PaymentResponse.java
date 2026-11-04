@@ -11,6 +11,7 @@ import java.util.UUID;
 public record PaymentResponse(
         UUID paymentId,
         String status,
+        String failureReason,
         UUID payerAccountId,
         UUID merchantAccountId,
         BigDecimal amount,
@@ -25,7 +26,7 @@ public record PaymentResponse(
         Instant createdAt) {
 
     public static PaymentResponse from(Payment p) {
-        return new PaymentResponse(p.getId(), p.getStatus().name(), p.getPayerAccountId(), p.getMerchantAccountId(),
+        return new PaymentResponse(p.getId(), p.getStatus().name(), p.getFailureReason(), p.getPayerAccountId(), p.getMerchantAccountId(),
                 p.getAmount(), p.getCurrency(), p.getCardId(), p.getMerchant(), p.getMerchantCategory(), p.getCity(),
                 p.getLatitude(), p.getLongitude(), p.getTransactionTime(), p.getCreatedAt());
     }

@@ -14,7 +14,8 @@ services:
     volumes:
       - payment-pgdata:/var/lib/postgresql/data
       # One database per service. Runs only when the volume is empty; on an older volume run once:
-      #   docker exec payment-postgres createdb -U app ledger
+      #   docker exec payment-postgres createdb -U app ledger      (item 1)
+      #   docker exec payment-postgres createdb -U app processor   (item 4)
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d payments"]
