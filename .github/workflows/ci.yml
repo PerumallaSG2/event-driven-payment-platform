@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # All four modules; needs Docker (Testcontainers, docker pause, the e2e process kills)
+      - name: Run tests
+        run: ./mvnw -B -ntp test
+
+      # Also after a failed run, so a skip never hides behind a failure. No reports, or fewer files than
+      # modules, fails too: a missing report must not read as "nothing skipped".
+      - name: Fail if any test was skipped
+        if: always()
+        run: |
+          reports=$(ls services/*/target/surefire-reports/TEST-*.xml 2>/dev/null | wc -l)
+          if [ "$reports" -lt 4 ]; then
+            echo "Expected surefire reports from all four modules, found $reports files."
+            exit 1
+          fi
+          if grep -H -o 'skipped="[1-9][0-9]*"' services/*/target/surefire-reports/TEST-*.xml; then
+            echo "Some tests were skipped. In CI every test must run."
+            exit 1
+          fi
+          echo "No skipped tests ($reports report files)."
+
+      # The e2e service logs explain what a failed e2e assertion only shows
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            services/*/target/surefire-reports
+            services/e2e-tests/target/e2e-logs
+          retention-days: 14

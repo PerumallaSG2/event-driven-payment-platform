@@ -1,3 +1,5 @@
+[![CI](https://github.com/PerumallaSG2/event-driven-payment-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/PerumallaSG2/event-driven-payment-platform/actions/workflows/ci.yml)
+
 ## 💳 Distributed Payments Platform
 
 This project simulates a real-world event-driven payment processing system designed to handle transactions reliably in a distributed microservices environment.
