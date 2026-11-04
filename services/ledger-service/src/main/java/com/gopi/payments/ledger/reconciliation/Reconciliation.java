@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -48,9 +49,17 @@ public class Reconciliation {
         this.properties = properties;
     }
 
+    /**
+     * Microseconds, what PostgreSQL's {@code timestamptz} keeps: the report returned by {@link #run()} is then the
+     * same as the stored run read back. On Linux {@code Instant.now()} has nanoseconds, which the database rounds.
+     */
+    private static Instant now() {
+        return Instant.now().truncatedTo(ChronoUnit.MICROS);
+    }
+
     public ReconciliationReport run() {
         UUID id = UUID.randomUUID();
-        Instant startedAt = Instant.now();
+        Instant startedAt = now();
         List<Mismatch> found = new ArrayList<>(ledger.run());
         boolean complete = true;
 
@@ -91,7 +100,7 @@ public class Reconciliation {
 
         Status status = !complete ? Status.INCOMPLETE : found.isEmpty() ? Status.CLEAN : Status.MISMATCHES;
         List<Mismatch> stored = found.subList(0, Math.min(found.size(), properties.maxStoredMismatches()));
-        ReconciliationReport report = new ReconciliationReport(id, status, startedAt, Instant.now(), checked,
+        ReconciliationReport report = new ReconciliationReport(id, status, startedAt, now(), checked,
                 found.size(), List.copyOf(stored));
         runs.save(report);
         logReport(report, found);
