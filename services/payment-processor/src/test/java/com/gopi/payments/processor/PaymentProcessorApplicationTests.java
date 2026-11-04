@@ -36,14 +36,14 @@ class PaymentProcessorApplicationTests {
      * producer added the others. Now every topic it touches exists with 3 partitions, all assigned to its listeners.
      */
     @Test
-    void consumedTopicsHaveThreePartitionsAllAssigned() {
+    void consumedTopicsHaveThreePartitionsAllAssigned() throws InterruptedException {
         Map<String, TopicDescription> topics = admin.describeTopics(Topics.PAYMENT_INITIATED, Topics.LEDGER_EVENTS,
                 Topics.LEDGER_COMMANDS, Topics.PAYMENT_EVENTS, Topics.PAYMENT_REVIEWS);
         assertThat(topics.values()).allSatisfy(t -> assertThat(t.partitions()).as(t.name()).hasSize(3));
 
         Instant deadline = Instant.now().plus(Duration.ofSeconds(30));
         while (assigned().size() < 9 && Instant.now().isBefore(deadline)) {
-            Thread.onSpinWait();
+            Thread.sleep(50);
         }
         assertThat(assigned()).extracting(TopicPartition::toString).containsExactlyInAnyOrder(
                 "payment.initiated-0", "payment.initiated-1", "payment.initiated-2",
@@ -51,7 +51,18 @@ class PaymentProcessorApplicationTests {
                 "payment.reviews-0", "payment.reviews-1", "payment.reviews-2");
     }
 
+    /** The containers change their assignment while rebalancing; a read that races with it is simply retried. */
     private List<TopicPartition> assigned() {
+        while (true) {
+            try {
+                return assignedOnce();
+            } catch (java.util.ConcurrentModificationException e) {
+                Thread.onSpinWait();
+            }
+        }
+    }
+
+    private List<TopicPartition> assignedOnce() {
         return listeners.getListenerContainers().stream()
                 .map(MessageListenerContainer::getAssignedPartitions)
                 .filter(p -> p != null)
