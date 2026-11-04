@@ -52,6 +52,27 @@ class PaymentQueryIntegrationTest {
     }
 
     /**
+     * Every field POST answers with (the body stored for the idempotency key, built from the payment in memory) is
+     * what GET returns from the row read back. Today that is paymentId and status; a timestamp added to the POST body
+     * must match too: on Linux the JVM clock has nanoseconds and PostgreSQL keeps microseconds.
+     */
+    @Test
+    void postResponseIsWhatALaterGetReturns() {
+        PaymentApi.Reply created = api().post(UUID.randomUUID().toString(), PaymentApi.validBody());
+        assertThat(created.status()).isEqualTo(HttpStatus.CREATED);
+        JsonNode posted = created.json(objectMapper);
+
+        PaymentApi.Reply fetched = api().get("/payments/" + posted.get("paymentId").asString());
+
+        assertThat(fetched.status()).isEqualTo(HttpStatus.OK);
+        JsonNode got = fetched.json(objectMapper);
+        assertThat(posted.propertyNames()).isNotEmpty();
+        for (String field : posted.propertyNames()) {
+            assertThat(got.get(field)).as(field).isEqualTo(posted.get(field));
+        }
+    }
+
+    /**
      * fraud-detection must receive the timestamp unchanged (its odd-hours rule reads the local time), so GET returns
      * the instant and the offset that POST received, not the instant normalized to UTC.
      */

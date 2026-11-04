@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
@@ -50,6 +51,28 @@ class LedgerApiIntegrationTest {
         assertThat(field(get("/holds/" + holdId), "status")).isEqualTo("CAPTURED");
         assertThat(balance(payer)).isEqualByComparingTo("57.50");
         assertThat(balance(merchant)).isEqualByComparingTo("42.50");
+    }
+
+    /**
+     * The POST response is built from the entity in memory, the GET from the row read back. They must be identical,
+     * timestamps included: on Linux the JVM clock has nanoseconds and PostgreSQL keeps microseconds.
+     */
+    @Test
+    void postResponsesAreWhatALaterGetReturns() {
+        Reply account = post("/accounts", "{\"name\":\"carol\",\"kind\":\"CUSTOMER\",\"currency\":\"" + currency + "\"}");
+        String accountId = (String) field(account, "id");
+        assertThat(json(get("/accounts/" + accountId))).isEqualTo(json(account));
+        UUID payer = UUID.fromString(accountId);
+        UUID merchant = createAccount("shop", "MERCHANT");
+        post("/accounts/" + payer + "/deposits", "{\"amount\":50.00}");
+
+        Reply hold = post("/holds", holdJson(payer, merchant, "12.34"));
+        String holdId = (String) field(hold, "holdId");
+        assertThat(json(get("/holds/" + holdId))).isEqualTo(json(hold));
+
+        Reply captured = post("/holds/" + holdId + "/capture", null);
+        assertThat(field(captured, "settledAt")).isNotNull();
+        assertThat(json(get("/holds/" + holdId))).isEqualTo(json(captured));
     }
 
     @Test
@@ -108,6 +131,11 @@ class LedgerApiIntegrationTest {
         assertThat(reply.status().value()).as(reply.body()).isEqualTo(status);
         assertThat(field(reply, "status")).isEqualTo(status);
         assertThat(field(reply, "title")).isNotNull();
+    }
+
+    private JsonNode json(Reply reply) {
+        assertThat(reply.status().is2xxSuccessful()).as(reply.body()).isTrue();
+        return objectMapper.readTree(reply.body());
     }
 
     @SuppressWarnings("unchecked")

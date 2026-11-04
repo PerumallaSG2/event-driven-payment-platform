@@ -45,7 +45,7 @@ public class Account {
         this.currency = currency;
         this.balance = BigDecimal.ZERO.setScale(2);
         this.allowNegative = allowNegative;
-        this.createdAt = Instant.now();
+        this.createdAt = Timestamps.now();
     }
 
     /** Adds a signed amount; the caller must hold the row lock and check {@link #wouldOverdraw} first. */

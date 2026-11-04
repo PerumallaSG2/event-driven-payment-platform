@@ -1,6 +1,7 @@
 package com.gopi.payments.processor.reconciliation;
 
 import com.gopi.payments.processor.saga.SagaProperties;
+import com.gopi.payments.processor.saga.Timestamps;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -37,7 +38,7 @@ public class StuckSagas {
 
     /** Up to {@code limit} stuck sagas, oldest update first. */
     public List<StuckSaga> find(int limit) {
-        Instant now = Instant.now();
+        Instant now = Timestamps.now();
         Instant deadlineBefore = now.minus(properties.grace());
         Instant fraudBefore = deadlineBefore.minus(saga.fraudCheckStaleAfter());
         return jdbc.sql("""

@@ -25,7 +25,7 @@ public class JournalEntry {
     public JournalEntry(EntryType type) {
         this.id = UUID.randomUUID();
         this.type = type;
-        this.createdAt = Instant.now();
+        this.createdAt = Timestamps.now();
     }
 
     public UUID getId() { return id; }

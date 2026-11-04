@@ -100,7 +100,7 @@ public class Payment {
         this.transactionTime = transactionTime.toInstant();
         this.transactionOffsetSeconds = transactionTime.getOffset().getTotalSeconds();
         this.status = PaymentStatus.CREATED;
-        this.createdAt = Instant.now();
+        this.createdAt = Timestamps.now();
     }
 
     /** Records fraud-detection's verdict once; REVIEW moves a CREATED payment to PENDING_REVIEW. */

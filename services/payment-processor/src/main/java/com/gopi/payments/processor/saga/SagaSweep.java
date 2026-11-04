@@ -48,7 +48,7 @@ public class SagaSweep {
     /** Handles one batch of due sagas; returns how many. */
     public int sweep() {
         Integer handled = tx.execute(status -> {
-            Instant now = Instant.now();
+            Instant now = Timestamps.now();
             List<UUID> ids = due.lock(now.minus(properties.resendAfter()), now.minus(properties.fraudCheckStaleAfter()),
                     now, properties.sweepBatchSize());
             for (UUID id : ids) {

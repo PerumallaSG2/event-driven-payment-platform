@@ -73,7 +73,7 @@ public class SagaService {
             log.info("Saga for payment {} already exists; ignoring payment.initiated {}", e.paymentId(), eventId);
             return;
         }
-        Instant now = Instant.now();
+        Instant now = Timestamps.now();
         Saga saga = new Saga(e, now, now.plus(properties.holdDeadline()));
         sagas.save(saga);
         sendCommand(saga);
@@ -92,7 +92,7 @@ public class SagaService {
         }
         Saga saga = found.get();
         SagaState state = saga.getState();
-        Instant now = Instant.now();
+        Instant now = Timestamps.now();
         switch (event) {
             case FundsHeld f when state == SagaState.HOLD_REQUESTED -> {
                 saga.moveTo(SagaState.FRAUD_CHECK, now);
@@ -121,7 +121,7 @@ public class SagaService {
         Saga s = found.get();
         if (s.getCardId() == null) {
             log.error("Saga {} has no card data to check; failing closed", paymentId);
-            failClosed(s, "no card data", Instant.now());
+            failClosed(s, "no card data", Timestamps.now());
             return Optional.empty();
         }
         return Optional.of(new FraudRequest(s.getCardId(), s.getAmount(), s.getMerchant(), s.getMerchantCategory(),
@@ -141,7 +141,7 @@ public class SagaService {
             return;
         }
         Saga saga = found.get();
-        Instant now = Instant.now();
+        Instant now = Timestamps.now();
         switch (result) {
             case Unavailable u -> failClosed(saga, u.cause() + ": " + u.detail(), now);
             case Scored scored -> {
@@ -184,9 +184,9 @@ public class SagaService {
         }
         Saga saga = found.get();
         if (reviewed.approve()) {
-            saga.moveTo(SagaState.CAPTURE_REQUESTED, Instant.now());
+            saga.moveTo(SagaState.CAPTURE_REQUESTED, Timestamps.now());
         } else {
-            saga.compensate(FRAUD_REJECTED, Instant.now());
+            saga.compensate(FRAUD_REJECTED, Timestamps.now());
         }
         sendCommand(saga);
     }

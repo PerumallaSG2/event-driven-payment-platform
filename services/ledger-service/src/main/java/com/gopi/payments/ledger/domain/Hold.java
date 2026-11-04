@@ -58,14 +58,14 @@ public class Hold {
         this.currency = currency;
         this.status = HoldStatus.OPEN;
         this.holdEntryId = holdEntryId;
-        this.createdAt = Instant.now();
+        this.createdAt = Timestamps.now();
     }
 
     /** Caller must hold the row lock and have checked the hold is OPEN. */
     public void settle(HoldStatus newStatus, UUID entryId) {
         this.status = newStatus;
         this.settleEntryId = entryId;
-        this.settledAt = Instant.now();
+        this.settledAt = Timestamps.now();
     }
 
     public UUID getId() { return id; }

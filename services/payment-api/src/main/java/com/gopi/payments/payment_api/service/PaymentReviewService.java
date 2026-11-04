@@ -2,13 +2,13 @@ package com.gopi.payments.payment_api.service;
 
 import com.gopi.payments.payment_api.domain.Payment;
 import com.gopi.payments.payment_api.domain.PaymentStatus;
+import com.gopi.payments.payment_api.domain.Timestamps;
 import com.gopi.payments.payment_api.events.PaymentReviewed;
 import com.gopi.payments.payment_api.outbox.OutboxRepository;
 import com.gopi.payments.payment_api.repo.PaymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -45,7 +45,7 @@ public class PaymentReviewService {
             throw new PaymentNotReviewableException("Payment " + paymentId + " is " + payment.getStatus()
                     + ", not waiting for a review");
         }
-        payment.review(approve, Instant.now());
+        payment.review(approve, Timestamps.now());
         outbox.append(TOPIC_PAYMENT_REVIEWS, paymentId.toString(), EVENT_PAYMENT_REVIEWED,
                 new PaymentReviewed(paymentId, approve));
     }
