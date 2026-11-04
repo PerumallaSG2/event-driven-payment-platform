@@ -26,5 +26,6 @@
         <module>services/payment-api</module>
         <module>services/ledger-service</module>
         <module>services/payment-processor</module>
+        <module>services/e2e-tests</module>
     </modules>
 </project>
