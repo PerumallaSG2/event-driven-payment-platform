@@ -4,11 +4,11 @@ import com.gopi.payments.payment_api.api.CreatePaymentRequest;
 import com.gopi.payments.payment_api.api.CreatePaymentResponse;
 import com.gopi.payments.payment_api.domain.Payment;
 import com.gopi.payments.payment_api.events.PaymentInitiatedEvent;
+import com.gopi.payments.payment_api.outbox.OutboxRepository;
 import com.gopi.payments.payment_api.repo.IdempotencyKey;
 import com.gopi.payments.payment_api.repo.IdempotencyKeyRepository;
 import com.gopi.payments.payment_api.repo.PaymentRepository;
 import org.springframework.http.HttpStatus;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
@@ -20,7 +20,8 @@ import java.util.UUID;
  * Creates a payment at most once per {@code Idempotency-Key}:
  * <ol>
  *   <li>claim the key (its own, immediately committed statement), or replay / reject based on the existing row;</li>
- *   <li>in one transaction: save the payment, publish, and mark the key COMPLETED with the response to replay;</li>
+ *   <li>in one transaction: save the payment, queue payment.initiated in the outbox, and mark the key COMPLETED
+ *       with the response to replay;</li>
  *   <li>if that transaction fails, release the claim so the client can retry the same key.</li>
  * </ol>
  * A crash between 1 and 2 writes nothing; the claim goes stale after {@code lock-timeout} and can be taken over.
@@ -29,23 +30,24 @@ import java.util.UUID;
 public class PaymentService {
 
     public static final String TOPIC_PAYMENT_INITIATED = "payment.initiated";
+    public static final String EVENT_PAYMENT_INITIATED = "PaymentInitiated";
     static final int MAX_KEY_LENGTH = 255;
     /** Bounds the claim loop when other requests keep winning races on the same key. */
     private static final int MAX_CLAIM_ATTEMPTS = 5;
 
     private final PaymentRepository paymentRepository;
     private final IdempotencyKeyRepository keys;
-    private final KafkaTemplate<String, PaymentInitiatedEvent> kafkaTemplate;
+    private final OutboxRepository outbox;
     private final TransactionTemplate tx;
     private final ObjectMapper objectMapper;
     private final IdempotencyProperties properties;
 
     public PaymentService(PaymentRepository paymentRepository, IdempotencyKeyRepository keys,
-                          KafkaTemplate<String, PaymentInitiatedEvent> kafkaTemplate, TransactionTemplate tx,
+                          OutboxRepository outbox, TransactionTemplate tx,
                           ObjectMapper objectMapper, IdempotencyProperties properties) {
         this.paymentRepository = paymentRepository;
         this.keys = keys;
-        this.kafkaTemplate = kafkaTemplate;
+        this.outbox = outbox;
         this.tx = tx;
         this.objectMapper = objectMapper;
         this.properties = properties;
@@ -112,8 +114,8 @@ public class PaymentService {
         paymentRepository.saveAndFlush(payment);   // flushed: the key row's payment_id references it
         UUID id = payment.getId();
 
-        // Still a direct send inside the transaction; the outbox replaces it in item 3.
-        kafkaTemplate.send(TOPIC_PAYMENT_INITIATED, id.toString(),
+        // Not sent here: the outbox row commits with the payment, and OutboxRelay publishes it.
+        outbox.append(TOPIC_PAYMENT_INITIATED, id.toString(), EVENT_PAYMENT_INITIATED,
                 new PaymentInitiatedEvent(id, payment.getAmount(), payment.getCurrency()));
 
         int status = HttpStatus.CREATED.value();

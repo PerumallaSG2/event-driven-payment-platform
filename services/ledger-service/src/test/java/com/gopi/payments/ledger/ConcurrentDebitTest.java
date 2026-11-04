@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * so exactly as many succeed as the balance covers and the account never goes below zero.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(PostgresTestcontainer.class)
+@Import({PostgresTestcontainer.class, KafkaTestcontainer.class})
 class ConcurrentDebitTest {
 
     private static final int THREADS = 16;

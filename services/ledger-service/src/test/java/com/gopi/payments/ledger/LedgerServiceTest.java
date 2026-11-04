@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(PostgresTestcontainer.class)
+@Import({PostgresTestcontainer.class, KafkaTestcontainer.class})
 class LedgerServiceTest {
 
     @Autowired AccountService accounts;

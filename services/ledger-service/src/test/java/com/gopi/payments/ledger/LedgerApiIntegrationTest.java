@@ -19,7 +19,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(PostgresTestcontainer.class)
+@Import({PostgresTestcontainer.class, KafkaTestcontainer.class})
 class LedgerApiIntegrationTest {
 
     @LocalServerPort int port;

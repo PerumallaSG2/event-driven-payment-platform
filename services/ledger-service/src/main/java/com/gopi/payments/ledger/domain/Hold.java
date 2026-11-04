@@ -36,6 +36,9 @@ public class Hold {
     @Column(nullable = false)
     private UUID holdEntryId;
 
+    /** The payment this hold belongs to; null for holds created through the REST API. */
+    private UUID paymentId;
+
     private UUID settleEntryId;
 
     @Column(nullable = false)
@@ -45,8 +48,10 @@ public class Hold {
 
     protected Hold() {}
 
-    public Hold(UUID payerAccountId, UUID merchantAccountId, BigDecimal amount, String currency, UUID holdEntryId) {
+    public Hold(UUID paymentId, UUID payerAccountId, UUID merchantAccountId, BigDecimal amount, String currency,
+                UUID holdEntryId) {
         this.id = UUID.randomUUID();
+        this.paymentId = paymentId;
         this.payerAccountId = payerAccountId;
         this.merchantAccountId = merchantAccountId;
         this.amount = amount;
@@ -70,6 +75,7 @@ public class Hold {
     public String getCurrency() { return currency; }
     public HoldStatus getStatus() { return status; }
     public UUID getHoldEntryId() { return holdEntryId; }
+    public UUID getPaymentId() { return paymentId; }
     public UUID getSettleEntryId() { return settleEntryId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getSettledAt() { return settledAt; }

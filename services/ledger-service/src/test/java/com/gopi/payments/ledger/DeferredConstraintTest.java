@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * constraint triggers catch what the code would have: an entry can be unbalanced mid-transaction, but not at commit.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(PostgresTestcontainer.class)
+@Import({PostgresTestcontainer.class, KafkaTestcontainer.class})
 class DeferredConstraintTest {
 
     @Autowired JdbcTemplate jdbc;

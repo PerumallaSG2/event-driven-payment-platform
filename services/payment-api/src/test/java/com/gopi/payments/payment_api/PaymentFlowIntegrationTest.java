@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.gopi.payments.payment_api.domain.Payment;
 import com.gopi.payments.payment_api.domain.PaymentStatus;
 import com.gopi.payments.payment_api.events.PaymentInitiatedEvent;
+import com.gopi.payments.payment_api.outbox.OutboxRelay;
 import com.gopi.payments.payment_api.repo.PaymentRepository;
 import com.gopi.payments.payment_api.service.PaymentService;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -23,13 +25,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.kafka.KafkaContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * End to end over real HTTP, PostgreSQL and Kafka: POST /payments stores the payment with every field and publishes
- * payment.initiated. Same configuration as {@link PaymentApiApplicationTests}, so all these tests share one context.
+ * End to end over real HTTP, PostgreSQL and Kafka: POST /payments stores the payment with every field, and the outbox
+ * relay publishes payment.initiated with its event-id and event-type headers. Same configuration as {@link PaymentApiApplicationTests}, so all these tests share one context.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import({PostgresTestcontainer.class, KafkaTestcontainer.class})
@@ -48,6 +51,9 @@ class PaymentFlowIntegrationTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     @Test
     void createStoresThePaymentAndPublishesPaymentInitiated() {
@@ -79,6 +85,12 @@ class PaymentFlowIntegrationTest {
             assertThat(stored.getTransactionTime()).isEqualTo(OffsetDateTime.parse("2026-03-14T02:30:00-05:00"));
 
             ConsumerRecord<String, String> record = awaitRecord(consumer, id);
+            String eventId = new String(record.headers().lastHeader(OutboxRelay.EVENT_ID_HEADER).value(),
+                    StandardCharsets.UTF_8);
+            assertThat(eventId).isEqualTo(jdbc.queryForObject(
+                    "SELECT event_id::text FROM outbox WHERE msg_key = ?", String.class, id.toString()));
+            assertThat(new String(record.headers().lastHeader(OutboxRelay.EVENT_TYPE_HEADER).value(),
+                    StandardCharsets.UTF_8)).isEqualTo(PaymentService.EVENT_PAYMENT_INITIATED);
             PaymentInitiatedEvent event = objectMapper.readValue(record.value(), PaymentInitiatedEvent.class);
             assertThat(event.paymentId()).isEqualTo(id);
             assertThat(event.amount()).isEqualByComparingTo("12.34");
