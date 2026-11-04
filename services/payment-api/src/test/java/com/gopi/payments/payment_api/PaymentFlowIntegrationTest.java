@@ -2,15 +2,14 @@ package com.gopi.payments.payment_api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.gopi.payments.payment_api.api.CreatePaymentResponse;
 import com.gopi.payments.payment_api.domain.Payment;
 import com.gopi.payments.payment_api.domain.PaymentStatus;
 import com.gopi.payments.payment_api.events.PaymentInitiatedEvent;
 import com.gopi.payments.payment_api.repo.PaymentRepository;
 import com.gopi.payments.payment_api.service.PaymentService;
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,15 +23,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
 import org.testcontainers.kafka.KafkaContainer;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Today's behavior end to end, over real HTTP, PostgreSQL and Kafka: POST /payments stores the payment and publishes
- * payment.initiated. Same configuration as {@link PaymentApiApplicationTests}, so both share one context.
+ * End to end over real HTTP, PostgreSQL and Kafka: POST /payments stores the payment with every field and publishes
+ * payment.initiated. Same configuration as {@link PaymentApiApplicationTests}, so all these tests share one context.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import({PostgresTestcontainer.class, KafkaTestcontainer.class})
@@ -56,43 +53,86 @@ class PaymentFlowIntegrationTest {
     void createStoresThePaymentAndPublishesPaymentInitiated() {
         try (KafkaConsumer<String, String> consumer = consumer()) {
             consumer.subscribe(List.of(PaymentService.TOPIC_PAYMENT_INITIATED));
+            Map<String, Object> body = PaymentApi.validBody();
+            body.put("amount", "12.34");
 
-            CreatePaymentResponse response = http().post().uri("/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("amount", new BigDecimal("12.34"), "currency", "USD"))
-                    .retrieve()
-                    .toEntity(CreatePaymentResponse.class)
-                    .getBody();
+            PaymentApi.Reply reply = api().post(UUID.randomUUID().toString(), body);
 
-            assertThat(response.status()).isEqualTo("CREATED");
-            Payment stored = payments.findById(response.paymentId()).orElseThrow();
+            assertThat(reply.status()).isEqualTo(HttpStatus.CREATED);
+            JsonNode json = reply.json(objectMapper);
+            assertThat(json.get("status").asString()).isEqualTo("CREATED");
+            UUID id = UUID.fromString(json.get("paymentId").asString());
+            assertThat(reply.headers().getLocation()).hasToString("/payments/" + id);
+
+            Payment stored = payments.findById(id).orElseThrow();
             assertThat(stored.getAmount()).isEqualByComparingTo("12.34");
             assertThat(stored.getCurrency()).isEqualTo("USD");
             assertThat(stored.getStatus()).isEqualTo(PaymentStatus.CREATED);
+            assertThat(stored.getPayerAccountId()).hasToString((String) body.get("payerAccountId"));
+            assertThat(stored.getMerchantAccountId()).hasToString((String) body.get("merchantAccountId"));
+            assertThat(stored.getCardId()).isEqualTo(body.get("cardId"));
+            assertThat(stored.getMerchant()).isEqualTo("Corner Coffee");
+            assertThat(stored.getMerchantCategory()).isEqualTo("RESTAURANT");
+            assertThat(stored.getCity()).isEqualTo("Austin");
+            assertThat(stored.getLatitude()).isEqualTo(30.2672);
+            assertThat(stored.getLongitude()).isEqualTo(-97.7431);
+            assertThat(stored.getTransactionTime()).isEqualTo(OffsetDateTime.parse("2026-03-14T02:30:00-05:00"));
 
-            ConsumerRecord<String, String> record = awaitRecord(consumer, response.paymentId());
+            ConsumerRecord<String, String> record = awaitRecord(consumer, id);
             PaymentInitiatedEvent event = objectMapper.readValue(record.value(), PaymentInitiatedEvent.class);
-            assertThat(event.paymentId()).isEqualTo(response.paymentId());
+            assertThat(event.paymentId()).isEqualTo(id);
             assertThat(event.amount()).isEqualByComparingTo("12.34");
             assertThat(event.currency()).isEqualTo("USD");
         }
     }
 
     @Test
-    void invalidRequestIsRejectedAndNothingIsStored() {
+    void invalidRequestIsRejectedAsProblemDetailAndNothingIsStored() {
         long before = payments.count();
+        Map<String, Object> body = PaymentApi.validBody();
+        body.put("amount", "-1");
+        body.put("currency", "usd");
 
-        HttpStatusCode status = http().post().uri("/payments")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("amount", new BigDecimal("-1"), "currency", ""))
-                .exchange((request, response) -> response.getStatusCode());
+        PaymentApi.Reply reply = api().post(UUID.randomUUID().toString(), body);
 
-        assertThat(status).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(reply.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(reply.headers().getContentType()).hasToString("application/problem+json");
+        assertThat(reply.json(objectMapper).get("title").asString()).isNotBlank();
         assertThat(payments.count()).isEqualTo(before);
     }
 
-    private RestClient http() {
-        return RestClient.create("http://localhost:" + port);
+    @Test
+    void duplicateJsonKeyIs400ProblemDetailAndDoesNotUseUpTheKey() {
+        Map<String, Object> body = PaymentApi.validBody();
+        String key = UUID.randomUUID().toString();
+        String json = objectMapper.writeValueAsString(body);
+        String duplicateTimestamp = "{\"timestamp\":\"2026-03-14T09:00:00Z\"," + json.substring(1);
+        String duplicateCity = json.replace("\"city\":\"Austin\"", "\"city\":\"Austin\",\"city\":\"Dallas\"");
+
+        for (String duplicate : new String[] {duplicateTimestamp, duplicateCity}) {
+            PaymentApi.Reply reply = api().post(key, duplicate);
+
+            assertThat(reply.status()).as(duplicate).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(reply.headers().getContentType()).hasToString("application/problem+json");
+            assertThat(reply.json(objectMapper).get("title").asString()).isNotBlank();
+        }
+        assertThat(api().post(key, body).status()).isEqualTo(HttpStatus.CREATED);
+        assertThat(payments.findAll()).filteredOn(p -> p.getCardId().equals(body.get("cardId"))).hasSize(1);
+    }
+
+    @Test
+    void payerEqualToMerchantIsRejected() {
+        Map<String, Object> body = PaymentApi.validBody();
+        body.put("merchantAccountId", body.get("payerAccountId"));
+
+        PaymentApi.Reply reply = api().post(UUID.randomUUID().toString(), body);
+
+        assertThat(reply.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(reply.json(objectMapper).get("title").asString()).isEqualTo("Invalid request");
+    }
+
+    private PaymentApi api() {
+        return new PaymentApi(port, objectMapper);
     }
 
     private KafkaConsumer<String, String> consumer() {
