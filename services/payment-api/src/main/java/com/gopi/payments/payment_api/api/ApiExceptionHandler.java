@@ -4,6 +4,7 @@ import com.gopi.payments.payment_api.service.IdempotencyKeyInFlightException;
 import com.gopi.payments.payment_api.service.IdempotencyKeyReusedException;
 import com.gopi.payments.payment_api.service.InvalidPaymentRequestException;
 import com.gopi.payments.payment_api.service.PaymentNotFoundException;
+import com.gopi.payments.payment_api.service.PaymentNotReviewableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -31,6 +32,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(PaymentNotFoundException.class)
     ProblemDetail notFound(PaymentNotFoundException e) {
         return problem(HttpStatus.NOT_FOUND, "Not found", e.getMessage());
+    }
+
+    @ExceptionHandler(PaymentNotReviewableException.class)
+    ProblemDetail notReviewable(PaymentNotReviewableException e) {
+        return problem(HttpStatus.CONFLICT, "Not reviewable", e.getMessage());
     }
 
     @ExceptionHandler(IdempotencyKeyReusedException.class)

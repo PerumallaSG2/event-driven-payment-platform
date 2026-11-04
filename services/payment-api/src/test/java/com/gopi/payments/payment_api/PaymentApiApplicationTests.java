@@ -23,7 +23,7 @@ class PaymentApiApplicationTests {
 	/** The topics it consumes and produces exist with 3 partitions, whichever service started first. */
 	@Test
 	void topicsHaveThreePartitions() {
-		assertThat(admin.describeTopics("payment.events", "payment.initiated", "payment.events.DLT").values())
+		assertThat(admin.describeTopics("payment.events", "payment.initiated", "payment.events.DLT", "payment.reviews").values())
 				.allSatisfy(t -> assertThat(t.partitions()).as(t.name()).hasSize(3));
 	}
 

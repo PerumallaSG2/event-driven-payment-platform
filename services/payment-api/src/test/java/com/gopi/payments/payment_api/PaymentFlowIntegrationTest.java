@@ -97,6 +97,15 @@ class PaymentFlowIntegrationTest {
             assertThat(event.currency()).isEqualTo("USD");
             assertThat(event.payerAccountId()).isEqualTo(stored.getPayerAccountId());
             assertThat(event.merchantAccountId()).isEqualTo(stored.getMerchantAccountId());
+            // the card/merchant fields reach the saga (and fraud-detection) unchanged, offset included
+            assertThat(event.cardId()).isEqualTo(body.get("cardId"));
+            assertThat(event.merchant()).isEqualTo("Corner Coffee");
+            assertThat(event.merchantCategory()).isEqualTo("RESTAURANT");
+            assertThat(event.city()).isEqualTo("Austin");
+            assertThat(event.latitude()).isEqualTo(30.2672);
+            assertThat(event.longitude()).isEqualTo(-97.7431);
+            assertThat(objectMapper.readTree(record.value()).get("timestamp").asString())
+                    .isEqualTo("2026-03-14T02:30:00-05:00");
         }
     }
 

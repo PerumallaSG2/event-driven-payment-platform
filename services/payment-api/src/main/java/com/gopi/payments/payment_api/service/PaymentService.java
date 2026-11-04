@@ -117,7 +117,9 @@ public class PaymentService {
         // Not sent here: the outbox row commits with the payment, and OutboxRelay publishes it.
         outbox.append(TOPIC_PAYMENT_INITIATED, id.toString(), EVENT_PAYMENT_INITIATED,
                 new PaymentInitiatedEvent(id, payment.getAmount(), payment.getCurrency(),
-                        payment.getPayerAccountId(), payment.getMerchantAccountId()));
+                        payment.getPayerAccountId(), payment.getMerchantAccountId(), payment.getCardId(),
+                        payment.getMerchant(), payment.getMerchantCategory(), payment.getCity(),
+                        payment.getLatitude(), payment.getLongitude(), payment.getTransactionTime()));
 
         int status = HttpStatus.CREATED.value();
         String body = objectMapper.writeValueAsString(new CreatePaymentResponse(id, payment.getStatus().name()));

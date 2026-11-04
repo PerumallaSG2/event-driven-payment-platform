@@ -19,19 +19,22 @@ class DueSagas {
     }
 
     /**
-     * Locks sagas that waited for the ledger since before {@code staleBefore}, or whose hold deadline passed. Rows
-     * another sweep (or a ledger event) holds are skipped, so each due saga is handled by exactly one sweep.
+     * Locks sagas that waited for the ledger since before {@code staleBefore}, whose hold or review deadline passed,
+     * or whose fraud check started before {@code fraudStaleBefore} and never finished. Rows another sweep (or a
+     * ledger event) holds are skipped, so each due saga is handled by exactly one sweep.
      */
-    List<UUID> lock(Instant staleBefore, Instant now, int limit) {
+    List<UUID> lock(Instant staleBefore, Instant fraudStaleBefore, Instant now, int limit) {
         return jdbc.sql("""
                         SELECT payment_id FROM sagas
                         WHERE (state IN ('HOLD_REQUESTED', 'CAPTURE_REQUESTED', 'RELEASE_REQUESTED')
                                AND updated_at < :staleBefore)
-                           OR (state = 'HOLD_REQUESTED' AND deadline_at < :now)
+                           OR (state IN ('HOLD_REQUESTED', 'PENDING_REVIEW') AND deadline_at < :now)
+                           OR (state = 'FRAUD_CHECK' AND updated_at < :fraudStaleBefore)
                         ORDER BY updated_at LIMIT :limit
                         FOR UPDATE SKIP LOCKED
                         """)
-                .param("staleBefore", Timestamp.from(staleBefore)).param("now", Timestamp.from(now))
+                .param("staleBefore", Timestamp.from(staleBefore))
+                .param("fraudStaleBefore", Timestamp.from(fraudStaleBefore)).param("now", Timestamp.from(now))
                 .param("limit", limit)
                 .query(UUID.class)
                 .list();

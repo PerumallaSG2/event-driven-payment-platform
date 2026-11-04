@@ -42,6 +42,16 @@ class KafkaConfig {
     }
 
     @Bean
+    NewTopic paymentReviews() {
+        return topic(Topics.PAYMENT_REVIEWS);
+    }
+
+    @Bean
+    NewTopic paymentReviewsDlt() {
+        return topic(Topics.PAYMENT_REVIEWS + Topics.DLT_SUFFIX);
+    }
+
+    @Bean
     NewTopic paymentInitiatedDlt() {
         return topic(Topics.PAYMENT_INITIATED + Topics.DLT_SUFFIX);
     }

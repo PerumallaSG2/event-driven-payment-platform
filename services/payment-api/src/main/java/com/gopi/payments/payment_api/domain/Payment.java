@@ -64,6 +64,24 @@ public class Payment {
     @Column(length = 50)
     private String failureReason;
 
+    // fraud-detection's verdict, from FraudChecked; null until then (and for good if the check failed closed)
+    private UUID fraudTransactionId;
+
+    @Column(length = 10)
+    private String fraudDecision;
+
+    private Integer fraudScore;
+
+    /** The triggered rules as fraud-detection returned them: a JSON array of {rule, points, reason}. */
+    @Column(columnDefinition = "text")
+    private String fraudRules;
+
+    /** APPROVE or REJECT, once a person reviewed a payment in PENDING_REVIEW. */
+    @Column(length = 10)
+    private String reviewDecision;
+
+    private Instant reviewedAt;
+
     protected Payment() {}
 
     public Payment(UUID payerAccountId, UUID merchantAccountId, BigDecimal amount, String currency, String cardId,
@@ -85,21 +103,53 @@ public class Payment {
         this.createdAt = Instant.now();
     }
 
-    /** Applies the saga's outcome once: only a CREATED payment changes, so final statuses never move. */
+    /** Records fraud-detection's verdict once; REVIEW moves a CREATED payment to PENDING_REVIEW. */
+    public boolean recordFraud(UUID transactionId, String decision, int score, String rulesJson) {
+        if (fraudDecision != null || isFinal()) return false;
+        fraudTransactionId = transactionId;
+        fraudDecision = decision;
+        fraudScore = score;
+        fraudRules = rulesJson;
+        if ("REVIEW".equals(decision)) {
+            status = PaymentStatus.PENDING_REVIEW;
+        }
+        return true;
+    }
+
+    /** A person's decision; the status stays PENDING_REVIEW until the saga reports the outcome. */
+    public void review(boolean approve, Instant now) {
+        if (status != PaymentStatus.PENDING_REVIEW || reviewDecision != null) {
+            throw new IllegalStateException("payment " + id + " is not waiting for a review");
+        }
+        reviewDecision = approve ? "APPROVE" : "REJECT";
+        reviewedAt = now;
+    }
+
+    /** Applies the saga's outcome once: final statuses never move. */
     public boolean complete() {
-        if (status != PaymentStatus.CREATED) return false;
+        if (isFinal()) return false;
         status = PaymentStatus.COMPLETED;
         return true;
     }
 
     public boolean fail(String reason) {
-        if (status != PaymentStatus.CREATED) return false;
+        if (isFinal()) return false;
         status = PaymentStatus.FAILED;
         failureReason = reason;
         return true;
     }
 
+    private boolean isFinal() {
+        return status == PaymentStatus.COMPLETED || status == PaymentStatus.FAILED;
+    }
+
     public UUID getId() { return id; }
+    public UUID getFraudTransactionId() { return fraudTransactionId; }
+    public String getFraudDecision() { return fraudDecision; }
+    public Integer getFraudScore() { return fraudScore; }
+    public String getFraudRules() { return fraudRules; }
+    public String getReviewDecision() { return reviewDecision; }
+    public Instant getReviewedAt() { return reviewedAt; }
     public String getFailureReason() { return failureReason; }
     public BigDecimal getAmount() { return amount; }
     public String getCurrency() { return currency; }

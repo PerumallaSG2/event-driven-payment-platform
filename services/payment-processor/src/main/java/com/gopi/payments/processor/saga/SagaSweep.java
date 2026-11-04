@@ -12,7 +12,8 @@ import java.util.UUID;
 
 /**
  * Finds sagas stuck waiting for the ledger (lost command, ledger down, reply in a DLT) and moves them on: re-send
- * the current command, or compensate a hold that never came. One transaction per run; the due rows stay locked
+ * the current command, or compensate a hold that never came, a review that never came, or a fraud check the app
+ * stopped in the middle of. One transaction per run; the due rows stay locked
  * until it commits, so parallel sweeps (several instances) never handle the same saga twice.
  */
 @Component
@@ -48,7 +49,8 @@ public class SagaSweep {
     public int sweep() {
         Integer handled = tx.execute(status -> {
             Instant now = Instant.now();
-            List<UUID> ids = due.lock(now.minus(properties.resendAfter()), now, properties.sweepBatchSize());
+            List<UUID> ids = due.lock(now.minus(properties.resendAfter()), now.minus(properties.fraudCheckStaleAfter()),
+                    now, properties.sweepBatchSize());
             for (UUID id : ids) {
                 service.sweep(sagas.findById(id).orElseThrow(), now);
             }

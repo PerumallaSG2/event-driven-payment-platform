@@ -59,6 +59,13 @@ final class PaymentApi {
                 new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8)));
     }
 
+    /** POST without an Idempotency-Key, e.g. a review. */
+    Reply postTo(String path, String json) {
+        return http.post().uri(path).contentType(MediaType.APPLICATION_JSON).body(json)
+                .exchange((req, res) -> new Reply(res.getStatusCode(), res.getHeaders(),
+                        new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8)));
+    }
+
     Reply get(String path) {
         return http.get().uri(path).exchange((req, res) -> new Reply(res.getStatusCode(), res.getHeaders(),
                 new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8)));

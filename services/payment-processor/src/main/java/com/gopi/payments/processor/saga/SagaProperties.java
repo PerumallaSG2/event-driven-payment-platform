@@ -8,7 +8,10 @@ import java.time.Duration;
  * @param resendAfter    a saga waiting this long for the ledger gets its current command sent again
  * @param holdDeadline   a saga still waiting for its hold this long after it started is compensated
  * @param sweepBatchSize sagas the sweep handles per run
+ * @param reviewDeadline a payment in review this long gets its hold released and FAILS (REVIEW_TIMEOUT)
+ * @param fraudCheckStaleAfter a fraud check unfinished this long was interrupted (the app stopped): fail closed
  */
 @ConfigurationProperties("saga")
-public record SagaProperties(Duration resendAfter, Duration holdDeadline, int sweepBatchSize) {
+public record SagaProperties(Duration resendAfter, Duration holdDeadline, int sweepBatchSize,
+                             Duration reviewDeadline, Duration fraudCheckStaleAfter) {
 }
